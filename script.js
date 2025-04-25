@@ -21,33 +21,40 @@ document.addEventListener('DOMContentLoaded', () => {
         timerEndTime: null
     };
 
-    function startNewGame() {
-        gameState.word = words[Math.floor(Math.random() * words.length)];
-        gameState.guessedLetters = [];
-        gameState.remainingAttempts = 10;
-        gameState.status = 'playing';
-        gameState.timerEndTime = Date.now() + 120000;
+    // Move timer display creation before game logic
+    const timerDisplay = document.createElement('div');
+    timerDisplay.className = 'timer';
+    document.querySelector('.container').insertBefore(timerDisplay, wordDisplay);
 
+    function initializeGame() {
+        gameState.word = words[Math.floor(Math.random() * words.length)];
         wordDisplay.textContent = '_ '.repeat(gameState.word.length).trim();
         guessedLetters.textContent = 'Guessed letters: ';
-        message.textContent = 'Click Start Game to begin!';
-        letterInput.value = '';
+        message.textContent = 'Press Start Game to begin!';
         letterInput.disabled = true;
         guessBtn.disabled = true;
         startGameBtn.style.display = 'block';
-
+        
         // Reset hangman
         hangmanParts.forEach(part => part.classList.remove('visible'));
+        updateTimer(120000);
+    }
 
+    function startNewGame() {
+        clearInterval(timerInterval);
+        gameState.guessedLetters = [];
+        gameState.remainingAttempts = 10;
+        gameState.status = 'playing';
+        message.classList.remove('won', 'lost');
+        
         startGameBtn.onclick = () => {
             startGameBtn.style.display = 'none';
             letterInput.disabled = false;
             guessBtn.disabled = false;
+            letterInput.value = '';
             message.textContent = `Remaining attempts: ${gameState.remainingAttempts}`;
             
-            // Start timer
             const endTime = Date.now() + 120000;
-            updateTimer(120000);
             timerInterval = setInterval(() => {
                 const remaining = endTime - Date.now();
                 if (remaining <= 0) {
@@ -57,13 +64,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateTimer(remaining);
             }, 1000);
         };
+
+        initializeGame();
     }
+
+    // Replace the automatic start with initialization
+    initializeGame();
 
     function makeGuess() {
         const letter = letterInput.value.trim().toUpperCase();
-        if (!letter || letter.length !== 1) {
+        if (!letter || letter.length !== 1 || !/[A-Z]/.test(letter)) {
             letterInput.classList.add('error-shake');
             setTimeout(() => letterInput.classList.remove('error-shake'), 500);
+            letterInput.value = '';
             return;
         }
 
@@ -91,6 +104,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Add input validation
+    letterInput.addEventListener('input', () => {
+        letterInput.value = letterInput.value.replace(/[^A-Za-z]/g, '').slice(0, 1).toUpperCase();
+    });
+
     function getWordProgress() {
         return gameState.word
             .split('')
@@ -110,11 +128,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Start game on page load
     startNewGame();
-
-    // Add timer display
-    const timerDisplay = document.createElement('div');
-    timerDisplay.className = 'timer';
-    document.querySelector('.container').insertBefore(timerDisplay, wordDisplay);
 
     function updateTimer(timeRemaining) {
         const minutes = Math.floor(timeRemaining / 60000);
