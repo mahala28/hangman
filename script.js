@@ -110,4 +110,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Start game on page load
     startNewGame();
+
+    // Add timer display
+    const timerDisplay = document.createElement('div');
+    timerDisplay.className = 'timer';
+    document.querySelector('.container').insertBefore(timerDisplay, wordDisplay);
+
+    function updateTimer(timeRemaining) {
+        const minutes = Math.floor(timeRemaining / 60000);
+        const seconds = Math.floor((timeRemaining % 60000) / 1000);
+        timerDisplay.textContent = `Time: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    function updateHangmanDrawing(remainingAttempts) {
+        const totalParts = 10;
+        const partsToShow = totalParts - remainingAttempts;
+        
+        hangmanParts.forEach((part, index) => {
+            if (index < partsToShow) {
+                part.classList.add('visible');
+            } else {
+                part.classList.remove('visible');
+            }
+        });
+    }
+
+    function endGame(status, messageText) {
+        clearInterval(timerInterval);
+        letterInput.disabled = true;
+        guessBtn.disabled = true;
+        message.textContent = messageText;
+        message.classList.add(status);
+        
+        if (status === 'won') {
+            alert('Congratulations! You won! 🎉\nThe word was: ' + gameState.word);
+        } else {
+            alert('Game Over! 😔\nThe word was: ' + gameState.word);
+        }
+    }
+
+    // Update new game button functionality
+    const newGameBtn = document.getElementById('new-game-btn');
+    newGameBtn.addEventListener('click', startNewGame);
 });
