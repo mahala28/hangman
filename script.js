@@ -57,53 +57,42 @@ document.addEventListener('DOMContentLoaded', () => {
     startGameBtn.style.display = 'none';
     document.querySelector('.container').insertBefore(startGameBtn, wordDisplay);
 
+    let gameState = {
+        word: '',
+        guessedLetters: [],
+        remainingAttempts: 10,
+        status: 'playing',
+        timerEndTime: null
+    };
+
     function startNewGame() {
-        clearInterval(timerInterval);
-        fetch('/api/start-game', { 
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({})
-        })
-        .then(response => response.json())
-        .then(data => {
-            wordDisplay.textContent = '_ '.repeat(data.wordLength).trim();
-            guessedLetters.textContent = 'Guessed letters: ';
-            message.textContent = 'Click Start Game to begin!';
-            letterInput.value = '';
-            letterInput.disabled = true;
-            guessBtn.disabled = true;
-            startGameBtn.style.display = 'block';
-            
-            message.classList.remove('won', 'lost');
-            hangmanParts.forEach(part => part.classList.remove('visible'));
-            
-            // Store game data for when start is clicked
-            startGameBtn.onclick = () => {
-                startGameBtn.style.display = 'none';
-                letterInput.disabled = false;
-                guessBtn.disabled = false;
-                message.textContent = `Remaining attempts: ${data.remainingAttempts}`;
-                
-                const startTime = Date.now();
-                const endTime = startTime + 120000; // 2 minutes
-                
-                updateTimer(120000); // Initial timer display
-                timerInterval = setInterval(() => {
-                    const remaining = endTime - Date.now();
-                    if (remaining <= 0) {
-                        endGame('lost', 'Time\'s up!');
-                        return;
-                    }
-                    updateTimer(remaining);
-                }, 1000);
-            };
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            message.textContent = 'Failed to start new game. Please try again.';
-        });
+        gameState.word = words[Math.floor(Math.random() * words.length)];
+        gameState.guessedLetters = [];
+        gameState.remainingAttempts = 10;
+        gameState.status = 'playing';
+        gameState.timerEndTime = Date.now() + 120000; // 2 minutes
+        
+        wordDisplay.textContent = '_ '.repeat(gameState.word.length).trim();
+        guessedLetters.textContent = 'Guessed letters: ';
+        message.textContent = `Remaining attempts: ${gameState.remainingAttempts}`;
+        letterInput.value = '';
+        letterInput.disabled = false;
+        guessBtn.disabled = false;
+        
+        // Reset hangman drawing
+        hangmanParts.forEach(part => part.classList.remove('visible'));
+        
+        // Start timer
+        updateTimer(120000);
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+            const remaining = gameState.timerEndTime - Date.now();
+            if (remaining <= 0) {
+                endGame('lost', 'Time\'s up!');
+                return;
+            }
+            updateTimer(remaining);
+        }, 1000);
     }
 
     function makeGuess() {
@@ -114,42 +103,29 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        fetch('/api/guess-letter', {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ letter })
-        })
-        .then(response => response.json())
-        .then(data => {
-            wordDisplay.textContent = data.wordProgress;
-            guessedLetters.textContent = `Guessed letters: ${data.guessedLetters.join(', ')}`;
-            message.textContent = `Remaining attempts: ${data.remainingAttempts}`;
+        if (gameState.guessedLetters.includes(letter)) {
             letterInput.value = '';
-            updateHangmanDrawing(data.remainingAttempts);
+            return;
+        }
 
-            if (data.remainingAttempts === 0 || data.status === 'won') {
-                clearInterval(timerInterval);
-                letterInput.disabled = true;
-                guessBtn.disabled = true;
-                
-                if (data.status === 'won') {
-                    message.textContent = 'Congratulations! You won!';
-                    message.classList.add('won');
-                    alert('Congratulations! You won! 🎉\nThe word was: ' + data.word);
-                } else {
-                    message.textContent = `Game Over! The word was: ${data.word}`;
-                    message.classList.add('lost');
-                    wordDisplay.textContent = data.word;
-                    alert('Game Over! 😔\nThe word was: ' + data.word);
-                }
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            message.textContent = 'Error making guess. Please try again.';
-        });
+        gameState.guessedLetters.push(letter);
+
+        if (!gameState.word.includes(letter)) {
+            gameState.remainingAttempts--;
+            updateHangmanDrawing(gameState.remainingAttempts);
+        }
+
+        const progress = getWordProgress();
+        wordDisplay.textContent = progress;
+        guessedLetters.textContent = `Guessed letters: ${gameState.guessedLetters.join(', ')}`;
+        message.textContent = `Remaining attempts: ${gameState.remainingAttempts}`;
+        letterInput.value = '';
+
+        if (progress.replace(/\s/g, '') === gameState.word) {
+            endGame('won', 'Congratulations! You won!');
+        } else if (gameState.remainingAttempts === 0) {
+            endGame('lost', `Game Over! The word was: ${gameState.word}`);
+        }
     }
 
     // Event Listeners
